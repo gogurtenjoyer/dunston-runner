@@ -2,39 +2,75 @@ Screen {
     layout: grid;
     grid-gutter: 0;
     grid-size: 2;
-    grid-columns: 30% 70%;
-    grid-rows: 40% 40% 20%;
+    grid-columns: 28% 72%;
+    grid-rows: 35% 30% 35%;
     background: $background;
 }
 
-#status {
-    row-span: 2;
+.params-row {
+    border: none;
+    height: auto;
+    max-height: 4;
 }
 
-#export {
+#starter-input {
+    min-width: 50%;
+    max-width: 70%;
 }
 
 #filename-input {
-    width: 50%;
-    margin-right: 1;
+    width: 100%;
+    margin-top: 0;
 }
 
 .box {
     height: 100%;
     border: outer $secondary-background;
     background: $secondary-background-darken-1;
+    align: center middle;
+    content-align: center middle;
+    scrollbar-background: $secondary-background-darken-2;
+    scrollbar-background-hover: $secondary-background;
+    scrollbar-background-active: $secondary-background;
+    scrollbar-color: $secondary;
+    scrollbar-color-hover: $secondary-lighten-1;
+    scrollbar-color-active: $secondary-lighten-2;
+    scrollbar-size-vertical: 1;
+}
+
+RichLog {
+    scrollbar-background: $secondary-background-darken-2;
+    scrollbar-background-hover: $secondary-background;
+    scrollbar-background-active: $secondary-background;
+    scrollbar-color: $secondary;
+    scrollbar-color-hover: $secondary-lighten-1;
+    scrollbar-color-active: $secondary-lighten-2;
+    scrollbar-size-vertical: 1;
 }
 
 #central-box {
     border: outer $secondary-background;
     border-title-align: center;
     border-title-color: $warning-darken-2;
+    row-span: 2;
+    align: center top;
+    overflow-y: scroll;
 }
 
 Button {
     margin: 1 1;
 }
 
+Static, Label {
+    margin: 0 1;
+}
+
 #export-btn {
-    margin: 0 0;
+    margin: 1 1;
+    align: center middle;
+}
+
+#generate-btn {
+    margin: 0 1;
+    align: right middle;
 }

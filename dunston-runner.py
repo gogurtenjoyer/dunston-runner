@@ -17,7 +17,7 @@ from contextlib import redirect_stdout, redirect_stderr
 from io import StringIO
 
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal, Vertical, Center, Middle, CenterMiddle
+from textual.containers import Container, Horizontal, Vertical, Center, Middle, CenterMiddle, VerticalScroll
 from textual.widgets import Footer, Input, Button, Static, Label, RichLog
 from textual.binding import Binding
 import asyncio
@@ -52,18 +52,22 @@ class ModelApp(App):
             with CenterMiddle():
                 yield Static("Model Status:")
                 yield Static("Not Loaded", id="model-status")
-                yield Button("Load Model", id="load-model", variant="primary")
-        with Container(name="System Log", classes="box"):
+                yield Button("Load Model", id="load-model", flat=False, variant="primary")
+        with Container(name="System Log", classes="box", id="syslog"):
             yield Label("System Log:")
             yield RichLog(id="system-log", wrap=True, highlight=True)
         with Container(name="Status", classes="box", id="status"):
-            yield Static("Total Unique Facts: 0", id="facts-count")
+            yield Static("Total Uniques: 0", id="facts-count")
             yield Static("Latest Status: None", id="last-generation")
-        pbox = Container(name="Params", classes="box", id="central-box")
+        pbox = VerticalScroll(name="Params", classes="box", id="central-box")
         pbox.border_title = "Generation Parameters"
         with pbox:
-            yield Label("Starter Text:")
-            yield Input(placeholder="Enter your starter text here...", id="starter-input")
+            yield Label("Starter Text:")          
+
+            with Horizontal(classes="params-row"):
+
+                yield Input(placeholder="Enter your starter text here...", id="starter-input")
+                yield Button("Generate", id="generate-btn", flat=False, variant="success", disabled=True)
             
             with Horizontal(classes="params-row"):
                 with Vertical(classes="param-group"):
@@ -72,13 +76,19 @@ class ModelApp(App):
                 with Vertical(classes="param-group"):
                     yield Label("Temperature:")
                     yield Input(value="1.6", placeholder="1.6", id="temp-input")
-                with Vertical():
-                    yield Button("Generate Facts", id="generate-btn", variant="success", disabled=True)
+
+            with Horizontal(classes="params-row"):
+                with Vertical(classes="param-group"):
+                    yield Label("Top P")
+                    yield Input(value="0.9", placeholder="0.9", id="top-p-input")
+                with Vertical(classes="param-group"):
+                    yield Label("Top K")
+                    yield Input(value="20", placeholder="20", id="top-k-input")
                  
         with Container(name="Export", classes="box", id="export"):
-            with Horizontal():
+            with Vertical():
                 yield Input(placeholder="filename.txt", id="filename-input")
-                yield Button("Export Facts", id="export-btn", variant="warning", disabled=True)
+                yield Button("Export", id="export-btn", flat=False, variant="warning", disabled=True)
 
 
     async def on_mount(self) -> None:
@@ -224,17 +234,21 @@ class ModelApp(App):
         try:
             amount = int(self.query_one("#amount-input").value or "1")
             temp = float(self.query_one("#temp-input").value or "1.6")
+            top_k = int(self.query_one("#top-k-input").value or "20")
+            top_p = float(self.query_one("#top-p-input").value or "0.9")
         except ValueError:
             self.query_one("#last-generation").update("Last Generation: Error - Invalid amount or temperature")
             return
         
         self.query_one("#last-generation").update("Last Generation: Generating...")
-        self.add_log(f"Generating {amount} facts with temperature {temp}...")
+        self.add_log(f"Generating {amount} facts with temp {temp}, top P {top_p}, top K {top_k}...")
         
         # Store values as instance variables to access in worker
         self._current_starter = starter
         self._current_amount = amount
         self._current_temp = temp
+        self._current_top_k = top_k
+        self._current_top_p = top_p
         
         # Use Textual's worker system
         self.run_worker(self._generate_facts_worker, exclusive=True)
@@ -246,7 +260,8 @@ class ModelApp(App):
         
         try:
             with redirect_stdout(stdout_capture), redirect_stderr(stderr_capture):
-                generated_count = self.make_fact(self._current_starter, self._current_amount, self._current_temp)
+                generated_count = self.make_fact(self._current_starter, self._current_amount, 
+                                                 self._current_temp, self._current_top_k, self._current_top_p)
             
             # Log any captured output
             self._log_captured_output(stdout_capture, stderr_capture)
@@ -265,7 +280,7 @@ class ModelApp(App):
             self.add_log(f"Generation ERROR: {error_msg}")
 
     @torch.inference_mode()
-    def make_fact(self, starter: str, amount: int = 1, temp: float = 1.6):
+    def make_fact(self, starter: str, amount: int = 1, temp: float = 1.6, top_k: int = 20, top_p: float = 0.9 ):
         """Generate facts using the model."""
         begin = "<s>"
         input_text = f"{begin}{starter}"
@@ -280,9 +295,9 @@ class ModelApp(App):
             inputs.input_ids, 
             attention_mask=inputs.attention_mask, 
             do_sample=True, 
-            top_k=20,
+            top_k=top_k,
             max_length=150, 
-            top_p=0.9, 
+            top_p=top_p, 
             temperature=temp, 
             num_return_sequences=amount
         )
@@ -305,7 +320,7 @@ class ModelApp(App):
     def update_facts_display(self) -> None:
         """Update the facts count display."""
         unique_count = len(set(self.facts))
-        self.query_one("#facts-count").update(f"Total Unique Facts: {unique_count}")
+        self.query_one("#facts-count").update(f"Total Uniques: {unique_count}")
 
     def export_facts(self) -> None:
         """Export facts to file."""
